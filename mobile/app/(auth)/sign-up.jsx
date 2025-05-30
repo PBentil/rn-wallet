@@ -138,7 +138,7 @@ export default function SignUpScreen() {
                     style={[styles.input, error && styles.errorInput]}
                 />
                 <TouchableOpacity onPress={onSignUpPress} style={styles.button}>
-                    <Text style={styles.buttonText}>Sign up</Text>
+                    <Text style={styles.buttonText}>Sign Up</Text>
                 </TouchableOpacity>
                 <View style={styles.footerContainer} >
                     <Text style={styles.footerText} >Already have an account?</Text>

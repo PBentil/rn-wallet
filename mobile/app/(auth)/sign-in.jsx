@@ -57,7 +57,7 @@ export default function Page() {
             extraHeight={100}
         >
         <View style={styles.container}>
-            <Image style={styles.illustration} source={require('../../assets/images/revenue-i3.png')} />
+            <Image style={styles.illustration} source={require('../../assets/images/revenue-i4.png')} />
             <Text style={styles.title}>Welcome Back</Text>
             {error? (
                 <View style={styles.errorBox}>
@@ -83,7 +83,7 @@ export default function Page() {
                 style={[styles.input , error &&  styles.errorInput]}
             />
             <TouchableOpacity style={styles.button} onPress={onSignInPress}>
-                <Text style={styles.buttonText}>Continue</Text>
+                <Text style={styles.buttonText}>Sign In</Text>
             </TouchableOpacity>
             <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>Don't have an account?</Text>
