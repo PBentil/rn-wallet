@@ -7,10 +7,11 @@ export const styles = StyleSheet.create({
         backgroundColor: COLORS.background,
         padding: 20,
         justifyContent: "center",
+
     },
     illustration: {
-        width: "100%",
         height: 310,
+        width: 300,
         resizeMode: "contain",
     },
     title: {
