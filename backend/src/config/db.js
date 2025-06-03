@@ -1,24 +1,32 @@
-import {neon} from "@neondatabase/serverless";
+import {Pool} from 'pg';
 import "dotenv/config";
 
-//creates a sql connection using db url
-export const sql = neon(process.env.NEON_DB_URL);
+const pool = new Pool({
+    user: process.env.DB_USER,
+    password:process.env.DB_PASSWORD,
+    host:process.env.DB_HOST,
+    port:process.env.DB_PORT,
+    database:process.env.DB_NAME,
+});
 
 
-// Initialize database
-export async function initDB() {
+export const query = (text, params) => pool.query(text, params);
+
+
+export const initDB = async () => {
     try {
-        await sql`CREATE TABLE IF NOT EXISTS transactions (
-      id SERIAL PRIMARY KEY,
-      user_id VARCHAR(255) NOT NULL,
-      title VARCHAR(255) NOT NULL,
-      amount DECIMAL(10,2) NOT NULL,
-      category VARCHAR(255) NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )`;
-        console.log("Database initialized successfully");
+        await pool.query(`CREATE TABLE IF NOT EXISTS transactions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        amount INTEGER NOT NULL,
+        category VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`);
+        console.log("Database initialized");
     } catch (error) {
         console.error("Error initializing database:", error);
         process.exit(1);
     }
+
 }

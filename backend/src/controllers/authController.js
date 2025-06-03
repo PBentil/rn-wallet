@@ -1,0 +1,192 @@
+import { query } from "../config/db.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+// import nodemailer from "nodemailer";
+
+const JWT_SECRET = process.env.JWT_SECRET;
+// const EMAIL_USER = process.env.EMAIL_USER;
+// const EMAIL_PASS = process.env.EMAIL_PASS;
+
+// Helper: Send OTP Email
+// async function sendOtpEmail(email, otp) {
+//     const transporter = nodemailer.createTransport({
+//         service: "Gmail",
+//         auth: {
+//             user: EMAIL_USER,
+//             pass: EMAIL_PASS,
+//         },
+//     });
+//
+//     await transporter.sendMail({
+//         from: `"My App" <${EMAIL_USER}>`,
+//         to: email,
+//         subject: "Your OTP Code",
+//         text: `Your verification code is: ${otp}`,
+//     });
+// }
+
+async function sendOtpEmail(email, otp) {
+    console.log(`Sending OTP to ${email} is ${otp}`);
+}
+
+// REGISTER
+export async function register(req, res) {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: "Please provide a valid email" });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters long" });
+        }
+
+        const existingUser = await query('SELECT * FROM users WHERE email = $1', [email]);
+        if (existingUser.rows.length > 0) {
+            return res.status(400).json({ message: "User with this email already exists" });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        const result = await query(
+            'INSERT INTO users (email, password_hash, otp, otp_expiry, is_verified) VALUES ($1, $2, $3, NOW() + interval \'10 minutes\', false) RETURNING id, email',
+            [email, hashedPassword, otp]
+        );
+
+        await sendOtpEmail(email, otp);
+
+        res.status(201).json({
+            message: "Registered successfully. OTP sent to email for verification.",
+            user: { id: result.rows[0].id, email: result.rows[0].email }
+        });
+
+    } catch (error) {
+        console.error("Registration error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// LOGIN
+export async function login(req, res) {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+        }
+
+        const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        const user = result.rows[0];
+
+        if (!user.is_verified) {
+            return res.status(403).json({ message: "Account not verified. Please verify using the OTP sent to your email." });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "1m" });
+
+        res.status(200).json({
+            token,
+            message: "Login successful",user: { id: user.id, email: user.email }
+        });
+
+    } catch (error) {
+        console.error("Login error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// SEND OTP AGAIN (Resend)
+export async function resendOtp(req, res) {
+    try {
+        const { email } = req.body;
+
+        const userResult = await query('SELECT * FROM users WHERE email = $1', [email]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        await query(
+            "UPDATE users SET otp = $1, otp_expiry = NOW() + interval '10 minutes' WHERE email = $2",
+            [otp, email]
+        );
+
+        await sendOtpEmail(email, otp);
+
+        res.status(200).json({ message: "OTP resent to email" });
+
+    } catch (error) {
+        console.error("Resend OTP error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// VERIFY OTP
+export async function verifyOtp(req, res) {
+    try {
+        const { email, otp } = req.body;
+
+        const result = await query(
+            "SELECT * FROM users WHERE email = $1 AND otp = $2 AND otp_expiry > NOW()",
+            [email, otp]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(400).json({ message: "Invalid or expired OTP" });
+        }
+
+        await query(
+            "UPDATE users SET is_verified = true, otp = NULL, otp_expiry = NULL WHERE email = $1",
+            [email]
+        );
+
+        res.status(200).json({ message: "OTP verified successfully. You can now log in." });
+
+    } catch (error) {
+        console.error("Verify OTP error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// MIDDLEWARE: TOKEN AUTH
+export function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ message: "Access denied, no token provided" });
+    }
+
+    if (!JWT_SECRET) {
+        console.error("JWT_SECRET is not defined");
+        return res.status(500).json({ message: "Server configuration error" });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) {
+            console.error("Token verification error:", err);
+            return res.status(403).json({ message: "Invalid or expired token" });
+        }
+        req.user = decoded;
+        next();
+    });
+}

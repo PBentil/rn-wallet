@@ -1,13 +1,29 @@
-import {useUser} from "@clerk/clerk-expo";
-import {Redirect} from "expo-router";
-import {Stack} from "expo-router";
+import { Redirect, Stack, usePathname } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export default function ProtectedLayout() {
+    const [loading, setLoading] = useState(true);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const pathname = usePathname();
 
-export default function Layout() {
-    const {isSignIn} = useUser();
+    useEffect(() => {
+        (async () => {
+            const token = await AsyncStorage.getItem('token');
+            setIsAuthenticated(!!token);
+            setLoading(false);
+        })();
+    }, []);
 
-    if (!isSignIn) return <Redirect href={'/sign-in'} />
+    if (loading) {
+        return null; // or loading spinner
+    }
 
-    return <Stack screenOptions={{headerShown: false}} />
+    // If user is NOT authenticated and NOT on public pages, redirect to sign-in
+    if (!isAuthenticated) {
+        return <Redirect href="/sign-in" />;
+    }
 
+    // If authenticated, render the protected stack
+    return <Stack screenOptions={{ headerShown: false }} />;
 }

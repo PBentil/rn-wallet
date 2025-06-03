@@ -1,62 +1,40 @@
-import {useCallback, useState} from "react";
-import {fetch} from "expo/fetch";
-import {Alert} from "react-native";
+import { useCallback, useState } from "react";
+import { Alert } from "react-native";
+import { fetchTransactions, fetchSummary, deleteTransactionApi } from "../services /transactionServices";
 
-const API_URL = "http://localhost:3000/";
-export default function useTransactions() {
+export default function useTransactions(user_id) {
     const [transactions, setTransactions] = useState([]);
+    const [summary, setSummary] = useState({ income: 0, expenses: 0, balance: 0 });
     const [isLoading, setIsLoading] = useState(false);
-    const [summary, setSummary] = useState({
-        balance: 0,
-        income: 0,
-        expenses: 0,
-    })
 
-    const getTransactions = useCallback(async () => {
-        try {
-            const response = await fetch(`${API_URL}/transactions/${user_id}`);
-            const data = await response.json();
-            setTransactions(data);
-        } catch (error) {
-            console.log(error);
-        }
-    }, [user_id])
-
-
-    const getSummary = useCallback(async () => {
-        try {
-            const response = await fetch(`${API_URL}/api/transactions/summary/${user_id}`);
-            const data = await response.json();
-            setSummary(data);
-        } catch (error) {
-            console.log(error);
-        }
-    }, [user_id])
-
-//to hit both endpoints at once
     const loadData = useCallback(async () => {
         if (!user_id) return;
         setIsLoading(true);
         try {
-            await Promise.all([getTransactions(), getSummary()]);
+            const [transactionsData, summaryData] = await Promise.all([
+                fetchTransactions(user_id),
+                fetchSummary(user_id),
+            ]);
+            setTransactions(transactionsData);
+            setSummary(summaryData);
         } catch (error) {
-            console.log("error loading data", error);
+            console.log(error);
+            Alert.alert("Error", error.message);
         } finally {
             setIsLoading(false);
         }
-    }, [getTransactions, getSummary, user_id])
+    }, [user_id]);
 
-
-    const deleteTransaction = useCallback(async (user_id) => {
+    const deleteTransaction = useCallback(async (transactionId) => {
         try {
-            const response = await fetch(`${API_URL}/api/transactions/${user_id}`, {method: "DELETE"});
-            if (!response.ok) throw new Error("Transaction deletion failed");
-            loadData();
-            Alert.alert("success", "Transaction deleted successfully");
+            await deleteTransactionApi(transactionId);
+            Alert.alert("Success", "Transaction deleted successfully");
+            await loadData();
         } catch (error) {
             console.log(error);
-            Alert.alert("error", error.message);
+            Alert.alert("Error", error.message);
         }
-    })
-    return {transactions, isLoading, summary, loadData, deleteTransaction};
+    }, [loadData]);
+
+    return { transactions, summary, isLoading, loadData, deleteTransaction };
 }

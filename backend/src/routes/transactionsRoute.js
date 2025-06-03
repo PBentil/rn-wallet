@@ -8,7 +8,7 @@ import {
 
 
 const router = express.Router();
-router.post("",Transaction);
+router.post("",Transaction)
 router.get("/:id",getTransactions);
 router.delete("/:id", deleteTransactions);
 router.get('/summary/:id', transactionSummary);

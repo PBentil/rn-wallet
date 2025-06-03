@@ -4,6 +4,7 @@ import cors from 'cors';
 import {rateLimit} from "express-rate-limit";
 import transactionsRoute from "./routes/transactionsRoute.js";
 import {initDB} from "./config/db.js";
+import authRoute from "./routes/authRoute.js";
 
 dotenv.config();
 const app = express();
@@ -31,6 +32,7 @@ app.get('/', (req, res) => {
 
 
 app.use("/api/transactions", transactionsRoute);
+app.use("/api/auth", authRoute);
 
 // Start server
 initDB().then(() => {
