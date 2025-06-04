@@ -47,32 +47,32 @@ export async function register(req, res) {
             return res.status(400).json({ message: "Password must be at least 6 characters long" });
         }
 
-        const existingUser = await query('SELECT * FROM users WHERE email = $1', [email]);
-        if (existingUser.rows.length > 0) {
-            return res.status(400).json({ message: "User with this email already exists" });
+        const userCheck = await query('SELECT * FROM users WHERE email = $1', [email]);
+        const pendingCheck = await query('SELECT * FROM pending_users WHERE email = $1', [email]);
+
+        if (userCheck.rows.length > 0 || pendingCheck.rows.length > 0) {
+            return res.status(400).json({ message: "User with this email already exists or is pending verification" });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        const result = await query(
-            'INSERT INTO users (email, password_hash, otp, otp_expiry, is_verified) VALUES ($1, $2, $3, NOW() + interval \'10 minutes\', false) RETURNING id, email',
+        await query(
+            'INSERT INTO pending_users (email, password_hash, otp, otp_expiry) VALUES ($1, $2, $3, NOW() + interval \'10 minutes\')',
             [email, hashedPassword, otp]
         );
 
+        console.log(otp)
         await sendOtpEmail(email, otp);
 
-        res.status(201).json({
-            message: "Registered successfully. OTP sent to email for verification.",
-            user: { id: result.rows[0].id, email: result.rows[0].email }
-        });
+        res.status(201).json({ message: "Verification code sent to your email" });
 
     } catch (error) {
         console.error("Registration error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
+
 
 // LOGIN
 export async function login(req, res) {
@@ -113,30 +113,46 @@ export async function login(req, res) {
     }
 }
 
-// SEND OTP AGAIN (Resend)
 export async function resendOtp(req, res) {
     try {
         const { email } = req.body;
 
-        const userResult = await query('SELECT * FROM users WHERE email = $1', [email]);
+        if (!email || typeof email !== 'string') {
+            return res.status(400).json({ message: "Valid email is required." });
+        }
+
+        const userResult = await query('SELECT * FROM pending_users WHERE email = $1', [email]);
         if (userResult.rows.length === 0) {
-            return res.status(404).json({ message: "User not found" });
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        const user = userResult.rows[0];
+
+        if (user.is_verified) {
+            return res.status(400).json({ message: "User is already verified." });
+        }
+
+        // Optional: prevent OTP abuse (30-second wait time)
+        const lastExpiry = new Date(user.otp_expiry);
+        const now = new Date();
+        if (lastExpiry && now < new Date(lastExpiry.getTime() - 570000)) {
+            return res.status(429).json({ message: "Please wait before requesting another OTP." });
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         await query(
-            "UPDATE users SET otp = $1, otp_expiry = NOW() + interval '10 minutes' WHERE email = $2",
+            "UPDATE pending_users SET otp = $1, otp_expiry = NOW() + interval '10 minutes' WHERE email = $2",
             [otp, email]
         );
 
         await sendOtpEmail(email, otp);
 
-        res.status(200).json({ message: "OTP resent to email" });
+        res.status(200).json({ message: "OTP resent to email." });
 
     } catch (error) {
         console.error("Resend OTP error:", error);
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error." });
     }
 }
 
@@ -146,7 +162,7 @@ export async function verifyOtp(req, res) {
         const { email, otp } = req.body;
 
         const result = await query(
-            "SELECT * FROM users WHERE email = $1 AND otp = $2 AND otp_expiry > NOW()",
+            "SELECT * FROM pending_users WHERE email = $1 AND otp = $2 AND otp_expiry > NOW()",
             [email, otp]
         );
 
@@ -154,10 +170,16 @@ export async function verifyOtp(req, res) {
             return res.status(400).json({ message: "Invalid or expired OTP" });
         }
 
+        const { password_hash } = result.rows[0];
+
+        // Insert verified user into `users`
         await query(
-            "UPDATE users SET is_verified = true, otp = NULL, otp_expiry = NULL WHERE email = $1",
-            [email]
+            "INSERT INTO users (email, password_hash, is_verified) VALUES ($1, $2, true)",
+            [email, password_hash]
         );
+
+        // Remove from pending_users
+        await query("DELETE FROM pending_users WHERE email = $1", [email]);
 
         res.status(200).json({ message: "OTP verified successfully. You can now log in." });
 
@@ -166,6 +188,7 @@ export async function verifyOtp(req, res) {
         res.status(500).json({ message: "Internal server error" });
     }
 }
+
 
 // MIDDLEWARE: TOKEN AUTH
 export function authenticateToken(req, res, next) {

@@ -28,14 +28,15 @@ export default function SignIn() {
         try {
             const response = await login(emailAddress.trim(), password.trim());
             const token = response.data.token;
-            const userId = response.data.user.id.toString();
-            await AsyncStorage.setItem('token', token);
-            await AsyncStorage.setItem('userId', userId);
+            const user = response.data.user;
 
-            Alert.alert("success", "Login successful");
+            await AsyncStorage.setItem('token', token);
+            await AsyncStorage.setItem('user', JSON.stringify(user));
+
+            Alert.alert("Success", "Login successful");
             router.replace('/');
         } catch (error) {
-            if (error.response.status === 401) {
+            if (error.response && error.response.status === 401) {
                 setError("Invalid email or password");
             } else {
                 setError("Something went wrong. Please try again later.");

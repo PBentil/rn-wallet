@@ -1,6 +1,11 @@
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
-import { fetchTransactions, fetchSummary, deleteTransactionApi } from "../services /transactionServices";
+import {
+    fetchTransactions,
+    fetchSummary,
+    deleteTransactionApi,
+    addTransactionApi
+} from "../services /transactionServices";
 
 export default function useTransactions(user_id) {
     const [transactions, setTransactions] = useState([]);
@@ -36,5 +41,23 @@ export default function useTransactions(user_id) {
         }
     }, [loadData]);
 
-    return { transactions, summary, isLoading, loadData, deleteTransaction };
+
+
+    // New: Add transaction function
+    const addTransaction = useCallback(
+        async (transactionData) => {
+            try {
+                await addTransactionApi(transactionData);
+                Alert.alert("Success", "Transaction added successfully");
+                await loadData();
+            } catch (error) {
+                console.log(error);
+                Alert.alert("Error", error.message);
+            }
+        },
+        [loadData]
+    );
+
+
+    return { transactions, summary, isLoading, loadData, deleteTransaction, addTransaction };
 }

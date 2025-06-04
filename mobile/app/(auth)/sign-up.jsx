@@ -1,13 +1,14 @@
 import * as React from 'react';
 import { Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import {useEffect, useState} from 'react';
 import { styles } from '../../assets/styles/auth.styles';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { Image } from 'expo-image';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import {register, resendOtp, verifyOtp} from "../../services /authServices";
+import { register, resendOtp, verifyOtp } from "../../services /authServices";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SignUpScreen() {
     const router = useRouter();
@@ -18,99 +19,160 @@ export default function SignUpScreen() {
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [countdown, setCountdown] = useState(0); // cooldown timer in seconds
 
-    // Handle registration
+    const resetStates = () => {
+        setEmailAddress('');
+        setPassword('');
+        setCode('');
+        setPendingVerification(false);
+        setError('');
+        setIsLoading(false);
+    };
+
     const onSignUpPress = async () => {
         setError('');
+
         if (!emailAddress || !password) {
             setError('Please enter both email and password.');
             return;
         }
+
         setIsLoading(true);
+
         try {
             const response = await register({
                 email: emailAddress.trim(),
                 password: password.trim(),
             });
-            if (response?.data?.message === 'Verification code sent') {
-                // Show verification screen
+
+            const message = response?.data?.message?.toLowerCase();
+
+            if (message?.includes('verification')) {
                 setPendingVerification(true);
-            } else {
-                // If no OTP needed, redirect or show success
-                Alert.alert('Registration Successful', 'You can now log in.');
-                router.replace('/login');
+
+                await AsyncStorage.setItem('email', emailAddress.trim());
             }
+
         } catch (err) {
-            console.error(err);
+            console.error('Signup error:', err);
             setError(
-                err.response?.data?.message || 'Failed to register. Please try again.'
+                err?.response?.data?.message || 'Failed to register. Please try again.'
             );
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Handle OTP verification
     const onVerifyPress = async () => {
         setError('');
         if (!code) {
             setError('Please enter the verification code.');
             return;
         }
+
         setIsLoading(true);
+
         try {
-            const response = await verifyOtp(emailAddress.trim(), code.trim());
-            if (response?.data?.message === 'OTP verified successfully') {
-                Alert.alert('Verification successful', 'You can now log in.');
-                router.replace('/login');
+            // Get saved email from AsyncStorage
+            const savedEmail = await AsyncStorage.getItem('email');
+
+            if (!savedEmail) {
+                setError('No email found for verification. Please sign up again.');
+                setIsLoading(false);
+                return;
+            }
+
+            const response = await verifyOtp(savedEmail.trim(), code.trim());
+
+            if (response?.data?.message?.includes('OTP verified successfully')) {
+                Alert.alert('Success', 'Email verified. You can now log in.');
+
+                // Clear saved email since verification is done
+                await AsyncStorage.removeItem('email');
+
+                resetStates();
+                router.replace('/sign-in');
             } else {
                 setError('Verification failed. Please check the code and try again.');
             }
         } catch (err) {
-            console.error(err);
+            console.error('Verification error:', err);
             setError(
-                err.response?.data?.message || 'Failed to verify OTP. Please try again.'
+                err?.response?.data?.message || 'Failed to verify OTP. Please try again.'
             );
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Resend OTP handler
+
+
+    useEffect(() => {
+        let interval;
+        if (countdown > 0) {
+            interval = setInterval(() => {
+                setCountdown(prev => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [countdown]);
+
+
+
     const onResendOtp = async () => {
+        console.log('Trying to resend OTP...');
+
+        if (countdown > 0) return;
+
         setError('');
         setIsLoading(true);
+
         try {
             const response = await resendOtp(emailAddress.trim());
-            if (response?.data?.message === 'OTP resent successfully') {
+            console.log('Resend OTP response:', response?.data);
+
+            const message = response?.data?.message?.toLowerCase();
+
+            if (message.includes('resent')) {
                 Alert.alert('Success', 'Verification code resent to your email.');
+                setCountdown(60);
+            } else if (message.includes('already verified')) {
+                setError('You are already verified. Please log in.');
+            } else if (message.includes('wait') || message.includes('too many')) {
+                setError('Please wait before requesting another OTP.');
             } else {
-                setError('Failed to resend OTP. Please try again later.');
+                setError('Failed to resend OTP. Please try again.');
             }
+
         } catch (err) {
-            console.error(err);
-            setError(
-                err.response?.data?.message || 'Failed to resend OTP. Please try again.'
-            );
+            console.error('Resend OTP error:', err);
+            const msg =
+                err?.response?.data?.message || 'Failed to resend OTP. Please try again.';
+            setError(msg);
         } finally {
             setIsLoading(false);
         }
     };
+
+
+
+    const renderErrorBox = () =>
+        error ? (
+            <View style={styles.errorBox}>
+                <Ionicons name="alert-circle-outline" size={24} color={COLORS.expense} />
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity onPress={() => setError('')}>
+                    <Ionicons name="close" size={24} color={COLORS.textLight} />
+                </TouchableOpacity>
+            </View>
+        ) : null;
 
     if (pendingVerification) {
         return (
             <View style={styles.verificationContainer}>
                 <Text style={styles.verificationTitle}>Verify your email</Text>
-                {error ? (
-                    <View style={styles.errorBox}>
-                        <Ionicons name="alert-circle-outline" size={24} color={COLORS.expense} />
-                        <Text style={styles.errorText}>{error}</Text>
-                        <TouchableOpacity onPress={() => setError('')}>
-                            <Ionicons name="close" size={24} color={COLORS.textLight} />
-                        </TouchableOpacity>
-                    </View>
-                ) : null}
-
+                {renderErrorBox()}
                 <TextInput
                     value={code}
                     placeholder="Enter your verification code"
@@ -122,9 +184,12 @@ export default function SignUpScreen() {
                 <TouchableOpacity onPress={onVerifyPress} style={styles.button} disabled={isLoading}>
                     <Text style={styles.buttonText}>{isLoading ? 'Verifying...' : 'Verify'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={onResendOtp} style={{ marginTop: 12 }}>
-                    <Text style={[styles.linkText, { textAlign: 'center' }]}>Resend Code</Text>
+                <TouchableOpacity onPress={onResendOtp} disabled={isLoading}>
+                    <Text style={{ color: isLoading ? 'gray' : 'blue' }}>
+                        {isLoading ? 'Resending...' : 'Resend OTP'}
+                    </Text>
                 </TouchableOpacity>
+
             </View>
         );
     }
@@ -133,8 +198,8 @@ export default function SignUpScreen() {
         <KeyboardAwareScrollView
             style={{ flex: 1 }}
             contentContainerStyle={{ flexGrow: 1 }}
-            enableOnAndroid={true}
-            enableAutomaticScroll={true}
+            enableOnAndroid
+            enableAutomaticScroll
             extraScrollHeight={100}
         >
             <View style={styles.container}>
@@ -143,15 +208,7 @@ export default function SignUpScreen() {
                     source={require('../../assets/images/revenue-i2.png')}
                 />
                 <Text style={styles.title}>Create an Account</Text>
-                {error ? (
-                    <View style={styles.errorBox}>
-                        <Ionicons name="alert-circle-outline" size={24} color={COLORS.expense} />
-                        <Text style={styles.errorText}>{error}</Text>
-                        <TouchableOpacity onPress={() => setError('')}>
-                            <Ionicons name="close" size={24} color={COLORS.textLight} />
-                        </TouchableOpacity>
-                    </View>
-                ) : null}
+                {renderErrorBox()}
                 <TextInput
                     autoCapitalize="none"
                     value={emailAddress}
@@ -164,7 +221,7 @@ export default function SignUpScreen() {
                 <TextInput
                     value={password}
                     placeholder="Enter password"
-                    secureTextEntry={true}
+                    secureTextEntry
                     onChangeText={setPassword}
                     style={[styles.input, error && styles.errorInput]}
                     textContentType="password"

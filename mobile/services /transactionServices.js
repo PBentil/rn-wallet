@@ -35,3 +35,18 @@ export async function deleteTransactionApi(transactionId) {
     if (!response.ok) throw new Error('Failed to delete transaction');
     return true;
 }
+
+export async function addTransactionApi(transaction) {
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/transactions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(transaction),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add transaction');
+    }
+    return response.json();
+}
