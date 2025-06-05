@@ -1,19 +1,17 @@
 // Create a transaction
 import {query} from "../config/db.js";
-
 export async function Transaction(req, res) {
     try {
         const { user_id, title, amount, category, type } = req.body;
 
         if (!user_id || !title || !category || !type || amount === undefined) {
-            return res.status(400).json({ message: "All fields are required" });
+            return res.status(400).json({ success: false, message: "All fields are required" });
         }
 
         if (type !== 'income' && type !== 'expense') {
-            return res.status(400).json({ message: "Type must be 'income' or 'expense'" });
+            return res.status(400).json({ success: false, message: "Type must be 'income' or 'expense'" });
         }
 
-        // Ensure amount is positive
         const positiveAmount = Math.abs(amount);
 
         const result = await query(
@@ -22,17 +20,21 @@ export async function Transaction(req, res) {
             [user_id, title, positiveAmount, category, type]
         );
 
-        res.status(201).json(result.rows[0]);
+        res.status(201).json({
+            success: true,
+            message: "Transaction added successfully",
+            data: result.rows[0],
+        });
     } catch (error) {
         console.error("Error creating transaction:", error);
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
 // Get all transactions by user_id (use authenticated user id)
 export async function getTransactions(req, res) {
     try {
-        const userId = req.user.id;
+        const userId = req.params.id;
 
         const result = await query(
             `SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC`,
@@ -78,7 +80,7 @@ export async function deleteTransactions(req, res) {
 // Transaction summary
 export async function transactionSummary(req, res) {
     try {
-        const userId = req.user.id;
+        const userId = req.params.id;
 
         const balanceResult = await query(
             `SELECT

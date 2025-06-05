@@ -184,8 +184,8 @@ export default function SignUpScreen() {
                 <TouchableOpacity onPress={onVerifyPress} style={styles.button} disabled={isLoading}>
                     <Text style={styles.buttonText}>{isLoading ? 'Verifying...' : 'Verify'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={onResendOtp} disabled={isLoading}>
-                    <Text style={{ color: isLoading ? 'gray' : 'blue' }}>
+                <TouchableOpacity onPress={onResendOtp} style={styles.button} disabled={isLoading}>
+                    <Text style={styles.buttonText}>
                         {isLoading ? 'Resending...' : 'Resend OTP'}
                     </Text>
                 </TouchableOpacity>

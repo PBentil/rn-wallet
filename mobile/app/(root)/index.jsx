@@ -1,31 +1,98 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
     View,
     Text,
     FlatList,
     ActivityIndicator,
-    Alert, TouchableOpacity,
+    Alert,
+    TouchableOpacity,
 } from "react-native";
 import { COLORS } from "../../constants/colors";
 import { styles } from "../../assets/styles/home.styles";
-import useTransactions from "../../hooks/useTrannsactions";
-import {Image} from "expo-image";
-import {Ionicons} from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import { SignOutButton } from "../../components/SignOutButton";
-import {router} from "expo-router";
+import { router } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import {
+    fetchTransactions,
+    fetchSummary,
+    deleteTransactionApi,
+} from "../../services /transactionServices";
 
-export default function Page({ user_id }) {
+export default function Page() {
     const [refreshing, setRefreshing] = useState(false);
-    const { transactions, summary, isLoading, loadData, deleteTransaction } = useTransactions(user_id);
+    const [userId, setUserId] = useState(null);
+    const [userName, setUserName] = useState('');
+    const [transactions, setTransactions] = useState([]);
+    const [summary, setSummary] = useState({
+        balance: 0,
+        income: 0,
+        expenses: 0,
+    });
+    const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        if (user_id) {
-            loadData();
+    // Load user info
+    const loadUserData = useCallback(async () => {
+        try {
+            const userDataStr = await AsyncStorage.getItem('user');
+            if (userDataStr) {
+                const userData = JSON.parse(userDataStr);
+                setUserId(userData.id);
+                setUserName(userData.email.split('@')[0]);
+                console.log(userData);
+                console.log(userData.id);
+            }
+        } catch (error) {
+            console.error("Failed to load user data", error);
         }
-    }, [loadData, user_id]);
+    }, []);
 
-    const onRefresh = async () => {
+    // Load transactions and summary
+    const loadData = useCallback(async () => {
+        if (!userId) return;
+
+        setIsLoading(true);
+        try {
+            const [fetchedTransactions, fetchedSummary] = await Promise.all([
+                fetchTransactions(userId),
+                fetchSummary(userId),
+            ]);
+            setTransactions(fetchedTransactions);
+            setSummary(fetchedSummary);
+        } catch (error) {
+            console.error("Error loading data:", error);
+            Alert.alert("Error", "Failed to load transactions.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [userId]);
+
+    const handleDeleteTransaction = async (transactionId) => {
+        Alert.alert(
+            "Confirm Delete",
+            "Are you sure you want to delete this transaction?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deleteTransactionApi(transactionId);
+                            await loadData();
+                        } catch (error) {
+                            console.error("Delete error:", error);
+                            Alert.alert("Error", "Failed to delete transaction.");
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const onRefresh = useCallback(async () => {
         setRefreshing(true);
         try {
             await loadData();
@@ -34,7 +101,18 @@ export default function Page({ user_id }) {
         } finally {
             setRefreshing(false);
         }
-    };
+    }, [loadData]);
+
+
+    useEffect(() => {
+        loadUserData();
+    }, []);
+
+    useEffect(() => {
+        if (userId) {
+            loadData();
+        }
+    }, [userId, loadData]);
 
     if (isLoading && !refreshing) {
         return (
@@ -47,23 +125,23 @@ export default function Page({ user_id }) {
     return (
         <View style={styles.container}>
             <View style={styles.content}>
-
                 <View style={styles.header}>
                     <Image style={styles.headerLogo} source={require('../../assets/images/logo.png')} />
                     <Text style={styles.headerTitle}>
                         <Text style={styles.headerLeft}>Hi, </Text>
-                        Bentil
+                        {userName || 'User'}
                     </Text>
 
-                    <TouchableOpacity style={styles.addButton} onPress={()=> router.push('/AddTransactions')}>
+                    <TouchableOpacity style={styles.addButton} onPress={() => router.push('/AddTransactions')}>
                         <Text style={styles.addButtonText}>
-                         <Ionicons name="add" size={15} /> Add
+                            <Ionicons name="add" size={15} /> Add
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.logoutButton}>
                         <SignOutButton />
                     </TouchableOpacity>
                 </View>
+
                 {/* Balance Card */}
                 <View style={styles.balanceCard}>
                     <Text style={styles.balanceTitle}>Total Balance</Text>
@@ -121,7 +199,10 @@ export default function Page({ user_id }) {
                                     </Text>
                                 </View>
                                 <View style={styles.transactionRight}>
-                                    <TouchableOpacity style={styles.deleteButton} onPress={() => deleteTransaction(item.id)}>
+                                    <TouchableOpacity
+                                        style={styles.deleteButton}
+                                        onPress={() => handleDeleteTransaction(item.id)}
+                                    >
                                         <Ionicons name="trash-outline" size={24} color={COLORS.textLight} />
                                     </TouchableOpacity>
                                 </View>
