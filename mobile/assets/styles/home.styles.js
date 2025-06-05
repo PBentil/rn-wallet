@@ -263,4 +263,32 @@ export const styles = StyleSheet.create({
     transactionsListContent: {
         paddingBottom: 20,
     },
+
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#f5f5f5',
+        borderRadius: 8,
+        padding: 4,
+        marginHorizontal: 16,
+        marginBottom: 16,
+    },
+    tabButton: {
+        flex: 1,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        alignItems: 'center',
+    },
+    activeTab: {
+        backgroundColor: COLORS.primary,
+    },
+    tabText: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: '#666',
+    },
+    activeTabText: {
+        color: 'white',
+        fontWeight: '600',
+    },
 });

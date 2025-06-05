@@ -32,6 +32,7 @@ export default function Page() {
         expenses: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('all'); // 'all', 'income', 'expenses'
 
     // Load user info
     const loadUserData = useCallback(async () => {
@@ -69,6 +70,18 @@ export default function Page() {
         }
     }, [userId]);
 
+    // Filter transactions based on active tab
+    const getFilteredTransactions = () => {
+        switch (activeTab) {
+            case 'income':
+                return transactions.filter(transaction => transaction.amount > 0);
+            case 'expenses':
+                return transactions.filter(transaction => transaction.amount < 0);
+            default:
+                return transactions;
+        }
+    };
+
     const handleDeleteTransaction = async (transactionId) => {
         Alert.alert(
             "Confirm Delete",
@@ -103,7 +116,6 @@ export default function Page() {
         }
     }, [loadData]);
 
-
     useEffect(() => {
         loadUserData();
     }, []);
@@ -121,6 +133,8 @@ export default function Page() {
             </View>
         );
     }
+
+    const filteredTransactions = getFilteredTransactions();
 
     return (
         <View style={styles.container}>
@@ -165,10 +179,41 @@ export default function Page() {
                     </View>
                 </View>
 
+                {/* Transaction Filter Tabs */}
+                <View style={styles.tabContainer}>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'all' && styles.activeTab]}
+                        onPress={() => setActiveTab('all')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>
+                            All
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'income' && styles.activeTab]}
+                        onPress={() => setActiveTab('income')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'income' && styles.activeTabText]}>
+                            Income
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'expenses' && styles.activeTab]}
+                        onPress={() => setActiveTab('expenses')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'expenses' && styles.activeTabText]}>
+                            Expenses
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
                 {/* Transactions List */}
-                <Text style={styles.sectionTitle}>Recent Transactions</Text>
+                <Text style={styles.sectionTitle}>
+                    {activeTab === 'all' ? 'Recent Transactions' :
+                        activeTab === 'income' ? 'Income Transactions' : 'Expense Transactions'}
+                </Text>
                 <FlatList
-                    data={transactions}
+                    data={filteredTransactions}
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.transactionsListContent}
                     refreshing={refreshing}
@@ -211,9 +256,14 @@ export default function Page() {
                     )}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyStateTitle}>No transactions yet</Text>
+                            <Text style={styles.emptyStateTitle}>
+                                {activeTab === 'all' ? 'No transactions yet' :
+                                    activeTab === 'income' ? 'No income transactions' : 'No expense transactions'}
+                            </Text>
                             <Text style={styles.emptyStateText}>
-                                Start by adding a transaction using the "+" button.
+                                {activeTab === 'all' ? 'Start by adding a transaction using the "+" button.' :
+                                    activeTab === 'income' ? 'Add some income transactions to see them here.' :
+                                        'Add some expense transactions to see them here.'}
                             </Text>
                         </View>
                     }
