@@ -92,7 +92,7 @@ export default function SignIn() {
                     {loading ? (
                         <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                        <Text style={styles.buttonText}>Sign In</Text>
+                        <Text style={styles.buttonText}>Log In</Text>
                     )}
                 </TouchableOpacity>
 

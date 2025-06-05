@@ -1,7 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-
-const API_URL = process.env.API_URL;
+import api from "./api";
 
 async function getToken() {
     return await AsyncStorage.getItem('token');
@@ -16,37 +14,53 @@ async function getHeaders() {
 }
 
 export async function fetchTransactions(user_id) {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/transactions/${user_id}`, { headers });
-    if (!response.ok) throw new Error('Failed to fetch transactions');
-    return response.json();
+    try {
+        const headers = await getHeaders();
+        const response = await api.get(`/transactions/${user_id}`, { headers });
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching transactions:', error.response?.data || error.message);
+        throw new Error(error.response?.data?.message || 'Failed to fetch transactions');
+    }
 }
 
 export async function fetchSummary(user_id) {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/transactions/summary/${user_id}`, { headers });
-    if (!response.ok) throw new Error('Failed to fetch summary');
-    return response.json();
+    try {
+        const headers = await getHeaders();
+        const response = await api.get(`/transactions/summary/${user_id}`, { headers });
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching summary:', error.response?.data || error.message);
+        throw new Error(error.response?.data?.message || 'Failed to fetch summary');
+    }
 }
 
 export async function deleteTransactionApi(transactionId) {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/transactions/${transactionId}`, { method: 'DELETE', headers });
-    if (!response.ok) throw new Error('Failed to delete transaction');
-    return true;
+    try {
+        const headers = await getHeaders();
+        const response = await api.delete(`/transactions/${transactionId}`, { headers });
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting transaction:', error.response?.data || error.message);
+        throw new Error(error.response?.data?.message || 'Failed to delete transaction');
+    }
 }
 
 export async function addTransactionApi(transaction) {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/transactions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(transaction),
-    });
+    try {
+        const headers = await getHeaders();
+        const response = await api.post(`/transactions`, transaction, { headers });
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add transaction');
+        // Now backend returns { success, message, data }
+        if (!response.data.success) {
+            throw new Error(response.data.message || 'Failed to add transaction');
+        }
+
+        // Return the actual transaction data
+        return response.data.data;
+    } catch (error) {
+        console.error('Error in addTransactionApi:', error.response?.data || error.message);
+        throw new Error(error.response?.data?.message || 'Failed to add transaction');
     }
-    return response.json();
 }
+
