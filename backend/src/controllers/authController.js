@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 // import nodemailer from "nodemailer";
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 // const EMAIL_USER = process.env.EMAIL_USER;
 // const EMAIL_PASS = process.env.EMAIL_PASS;
 
@@ -75,6 +76,7 @@ export async function register(req, res) {
 
 
 // LOGIN
+// LOGIN
 export async function login(req, res) {
     try {
         const { email, password } = req.body;
@@ -100,11 +102,25 @@ export async function login(req, res) {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "1m" });
+        const accessToken = jwt.sign(
+            { id: user.id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: "15m" }
+        );
+
+        const refreshToken = jwt.sign(
+            { id: user.id, email: user.email },
+            process.env.JWT_REFRESH_SECRET,
+            { expiresIn: "30d" }
+        );
+
+        // Optional: Store refreshToken in DB or in-memory store for revocation
 
         res.status(200).json({
-            token,
-            message: "Login successful",user: { id: user.id, email: user.email }
+            token: accessToken,
+            refreshToken,
+            message: "Login successful",
+            user: { id: user.id, email: user.email }
         });
 
     } catch (error) {
@@ -112,6 +128,7 @@ export async function login(req, res) {
         res.status(500).json({ message: "Internal server error" });
     }
 }
+
 
 export async function resendOtp(req, res) {
     try {
@@ -132,7 +149,6 @@ export async function resendOtp(req, res) {
             return res.status(400).json({ message: "User is already verified." });
         }
 
-        // Optional: prevent OTP abuse (30-second wait time)
         const lastExpiry = new Date(user.otp_expiry);
         const now = new Date();
         if (lastExpiry && now < new Date(lastExpiry.getTime() - 570000)) {
@@ -172,7 +188,6 @@ export async function verifyOtp(req, res) {
 
         const { password_hash } = result.rows[0];
 
-        // Insert verified user into `users`
         await query(
             "INSERT INTO users (email, password_hash, is_verified) VALUES ($1, $2, true)",
             [email, password_hash]
@@ -190,7 +205,6 @@ export async function verifyOtp(req, res) {
 }
 
 
-// MIDDLEWARE: TOKEN AUTH
 export function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -213,3 +227,28 @@ export function authenticateToken(req, res, next) {
         next();
     });
 }
+
+
+export function refreshAccessToken(req, res) {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+        return res.status(401).json({ message: "Refresh token required" });
+    }
+
+    jwt.verify(refreshToken, JWT_REFRESH_SECRET, (err, decoded) => {
+        if (err) {
+            console.error("Refresh token error:", err);
+            return res.status(403).json({ message: "Invalid or expired refresh token" });
+        }
+
+        const newAccessToken = jwt.sign(
+            { id: decoded.id, email: decoded.email },
+            JWT_SECRET,
+            { expiresIn: "15m" }
+        );
+
+        res.status(200).json({ token: newAccessToken });
+    });
+}
+

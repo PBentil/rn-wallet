@@ -13,6 +13,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { SignOutButton } from "../../components/SignOutButton";
 import { router } from "expo-router";
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
@@ -20,6 +21,7 @@ import {
     fetchSummary,
     deleteTransactionApi,
 } from "../../services /transactionServices";
+
 
 export default function Page() {
     const [refreshing, setRefreshing] = useState(false);
@@ -32,7 +34,7 @@ export default function Page() {
         expenses: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('all'); // 'all', 'income', 'expenses'
+    const [activeTab, setActiveTab] = useState('all');
 
     // Load user info
     const loadUserData = useCallback(async () => {
@@ -70,13 +72,25 @@ export default function Page() {
         }
     }, [userId]);
 
-    // Filter transactions based on active tab
+    useFocusEffect(
+        useCallback(() => {
+            console.log('📱 Screen focused - refreshing data...');
+            const refreshOnFocus = async () => {
+                await loadUserData();
+                if (userId) {
+                    await loadData();
+                }
+            };
+            refreshOnFocus();
+        }, [loadUserData, loadData, userId])
+    );
+
     const getFilteredTransactions = () => {
         switch (activeTab) {
             case 'income':
-                return transactions.filter(transaction => transaction.amount > 0);
+                return transactions.filter(transaction => transaction.type === 'income');
             case 'expenses':
-                return transactions.filter(transaction => transaction.amount < 0);
+                return transactions.filter(transaction => transaction.type === 'expense');
             default:
                 return transactions;
         }
@@ -95,9 +109,10 @@ export default function Page() {
                         try {
                             await deleteTransactionApi(transactionId);
                             await loadData();
+                            Alert.alert("Success", "Transaction deleted successfully");
                         } catch (error) {
                             console.error("Delete error:", error);
-                            Alert.alert("Error", "Failed to delete transaction.");
+                            Alert.alert("Error", error.message || "Failed to delete transaction");
                         }
                     },
                 },
@@ -116,10 +131,12 @@ export default function Page() {
         }
     }, [loadData]);
 
+    // Initial load on component mount
     useEffect(() => {
         loadUserData();
     }, []);
 
+    // Load data when userId changes
     useEffect(() => {
         if (userId) {
             loadData();
@@ -233,11 +250,12 @@ export default function Page() {
                                         style={[
                                             styles.transactionAmount,
                                             {
-                                                color: item.amount > 0 ? "green" : "red",
+                                                color: item.type === 'income' ? "green" : "red",
+
                                             },
                                         ]}
                                     >
-                                        {item.amount > 0 ? "+" : "-"} GH₵ {Math.abs(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {item.type === "income" ? "+" : "-"} GH₵ {Math.abs(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </Text>
                                     <Text style={styles.transactionDate}>
                                         {new Date(item.created_at).toLocaleDateString()}

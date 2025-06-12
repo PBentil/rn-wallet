@@ -12,6 +12,7 @@ const API = axios.create({
     },
 });
 
+// Attach token before request
 API.interceptors.request.use(
     async (config) => {
         const token = await AsyncStorage.getItem('token');
@@ -20,7 +21,42 @@ API.interceptors.request.use(
         }
         return config;
     },
-    (error) => {
+    (error) => Promise.reject(error)
+);
+
+API.interceptors.response.use(
+    response => response,
+    async (error) => {
+        const originalRequest = error.config;
+
+        if (
+            error.response?.status === 401 &&
+            !originalRequest._retry
+        ) {
+            originalRequest._retry = true;
+
+            try {
+                const refreshToken = await AsyncStorage.getItem('refreshToken');
+                if (!refreshToken) throw new Error('No refresh token');
+
+                const res = await axios.post(`${baseURL}/auth/refresh-token`, {
+                    refreshToken,
+                });
+
+                const newToken = res.data.token;
+                await AsyncStorage.setItem('token', newToken);
+
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+                return API(originalRequest);
+            } catch (refreshError) {
+                await AsyncStorage.removeItem('token');
+                await AsyncStorage.removeItem('refreshToken');
+                console.warn('Session expired, please log in again');
+                return Promise.reject(refreshError);
+            }
+        }
+
         return Promise.reject(error);
     }
 );

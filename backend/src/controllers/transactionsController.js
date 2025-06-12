@@ -52,23 +52,19 @@ export async function getTransactions(req, res) {
     }
 }
 
-// Delete a transaction by ID (optionally check ownership)
 export async function deleteTransactions(req, res) {
     try {
         const userId = req.user.id;
         const { id } = req.params;
 
-        // Optional: ensure user owns the transaction before deleting
-        const existing = await query(
-            `SELECT * FROM transactions WHERE id = $1 AND user_id = $2`,
+        const result = await query(
+            `DELETE FROM transactions WHERE id = $1 AND user_id = $2 RETURNING *`,
             [id, userId]
         );
 
-        if (existing.rows.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({ message: "Transaction not found or not authorized" });
         }
-
-        await query(`DELETE FROM transactions WHERE id = $1`, [id]);
 
         res.status(200).json({ message: "Transaction deleted successfully" });
     } catch (error) {
@@ -77,7 +73,7 @@ export async function deleteTransactions(req, res) {
     }
 }
 
-// Transaction summary
+
 export async function transactionSummary(req, res) {
     try {
         const userId = req.params.id;
