@@ -13,6 +13,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { SignOutButton } from "../../components/SignOutButton";
 import { router } from "expo-router";
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
@@ -20,6 +21,7 @@ import {
     fetchSummary,
     deleteTransactionApi,
 } from "../../services /transactionServices";
+
 
 export default function Page() {
     const [refreshing, setRefreshing] = useState(false);
@@ -32,6 +34,7 @@ export default function Page() {
         expenses: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('all');
 
     // Load user info
     const loadUserData = useCallback(async () => {
@@ -69,6 +72,30 @@ export default function Page() {
         }
     }, [userId]);
 
+    useFocusEffect(
+        useCallback(() => {
+            console.log('📱 Screen focused - refreshing data...');
+            const refreshOnFocus = async () => {
+                await loadUserData();
+                if (userId) {
+                    await loadData();
+                }
+            };
+            refreshOnFocus();
+        }, [loadUserData, loadData, userId])
+    );
+
+    const getFilteredTransactions = () => {
+        switch (activeTab) {
+            case 'income':
+                return transactions.filter(transaction => transaction.type === 'income');
+            case 'expenses':
+                return transactions.filter(transaction => transaction.type === 'expense');
+            default:
+                return transactions;
+        }
+    };
+
     const handleDeleteTransaction = async (transactionId) => {
         Alert.alert(
             "Confirm Delete",
@@ -82,9 +109,10 @@ export default function Page() {
                         try {
                             await deleteTransactionApi(transactionId);
                             await loadData();
+                            Alert.alert("Success", "Transaction deleted successfully");
                         } catch (error) {
                             console.error("Delete error:", error);
-                            Alert.alert("Error", "Failed to delete transaction.");
+                            Alert.alert("Error", error.message || "Failed to delete transaction");
                         }
                     },
                 },
@@ -103,11 +131,12 @@ export default function Page() {
         }
     }, [loadData]);
 
-
+    // Initial load on component mount
     useEffect(() => {
         loadUserData();
     }, []);
 
+    // Load data when userId changes
     useEffect(() => {
         if (userId) {
             loadData();
@@ -121,6 +150,8 @@ export default function Page() {
             </View>
         );
     }
+
+    const filteredTransactions = getFilteredTransactions();
 
     return (
         <View style={styles.container}>
@@ -165,10 +196,41 @@ export default function Page() {
                     </View>
                 </View>
 
+                {/* Transaction Filter Tabs */}
+                <View style={styles.tabContainer}>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'all' && styles.activeTab]}
+                        onPress={() => setActiveTab('all')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>
+                            All
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'income' && styles.activeTab]}
+                        onPress={() => setActiveTab('income')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'income' && styles.activeTabText]}>
+                            Income
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'expenses' && styles.activeTab]}
+                        onPress={() => setActiveTab('expenses')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'expenses' && styles.activeTabText]}>
+                            Expenses
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
                 {/* Transactions List */}
-                <Text style={styles.sectionTitle}>Recent Transactions</Text>
+                <Text style={styles.sectionTitle}>
+                    {activeTab === 'all' ? 'Recent Transactions' :
+                        activeTab === 'income' ? 'Income Transactions' : 'Expense Transactions'}
+                </Text>
                 <FlatList
-                    data={transactions}
+                    data={filteredTransactions}
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.transactionsListContent}
                     refreshing={refreshing}
@@ -188,11 +250,12 @@ export default function Page() {
                                         style={[
                                             styles.transactionAmount,
                                             {
-                                                color: item.amount > 0 ? "green" : "red",
+                                                color: item.type === 'income' ? "green" : "red",
+
                                             },
                                         ]}
                                     >
-                                        {item.amount > 0 ? "+" : "-"} GH₵ {Math.abs(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {item.type === "income" ? "+" : "-"} GH₵ {Math.abs(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </Text>
                                     <Text style={styles.transactionDate}>
                                         {new Date(item.created_at).toLocaleDateString()}
@@ -211,9 +274,14 @@ export default function Page() {
                     )}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyStateTitle}>No transactions yet</Text>
+                            <Text style={styles.emptyStateTitle}>
+                                {activeTab === 'all' ? 'No transactions yet' :
+                                    activeTab === 'income' ? 'No income transactions' : 'No expense transactions'}
+                            </Text>
                             <Text style={styles.emptyStateText}>
-                                Start by adding a transaction using the "+" button.
+                                {activeTab === 'all' ? 'Start by adding a transaction using the "+" button.' :
+                                    activeTab === 'income' ? 'Add some income transactions to see them here.' :
+                                        'Add some expense transactions to see them here.'}
                             </Text>
                         </View>
                     }

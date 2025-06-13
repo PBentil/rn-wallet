@@ -35,16 +35,12 @@ export default function AddTransactionScreen() {
 
     const categories = isIncomeSelected ? incomeCategories : expenseCategories;
 
-
-
     useEffect(() => {
         const fetchUserId = async () => {
             try {
                 const userDataString = await AsyncStorage.getItem('user');
-                console.log('AsyncStorage user data string:', userDataString);
                 if (userDataString) {
                     const userData = JSON.parse(userDataString);
-                    console.log('Parsed user data:', userData);
                     if (userData.id) {
                         setUserId(userData.id);
                     }
@@ -57,10 +53,15 @@ export default function AddTransactionScreen() {
         fetchUserId();
     }, []);
 
-
     const handleSave = async () => {
         if (!amount || !title || !selectedCategory) {
             Alert.alert('Validation Error', 'Please fill in all fields.');
+            return;
+        }
+
+        const parsedAmount = parseFloat(amount);
+        if (isNaN(parsedAmount) || parsedAmount <= 0) {
+            Alert.alert('Validation Error', 'Please enter a valid amount greater than 0.');
             return;
         }
 
@@ -74,14 +75,21 @@ export default function AddTransactionScreen() {
         const newTransaction = {
             user_id: userId,
             title,
-            amount: parseFloat(amount),
+            amount: parsedAmount,
             type: isIncomeSelected ? 'income' : 'expense',
             category: selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1),
         };
-        console.log('Saving transaction:', newTransaction);
+
         try {
             await addTransactionApi(newTransaction);
             Alert.alert('Success', 'Transaction added successfully');
+
+            // ✅ Reset form
+            setAmount('');
+            setTitle('');
+            setSelectedCategory('');
+            setIsIncomeSelected(true);
+
             router.back();
         } catch (error) {
             console.error(error);
@@ -90,6 +98,7 @@ export default function AddTransactionScreen() {
             setIsSubmitting(false);
         }
     };
+
     return (
         <ScrollView contentContainerStyle={styles.container}>
             <View style={styles.header}>
@@ -112,7 +121,6 @@ export default function AddTransactionScreen() {
                         {isSubmitting ? 'Saving...' : 'Save'}
                     </Text>
                 </TouchableOpacity>
-
             </View>
 
             <View style={styles.card}>

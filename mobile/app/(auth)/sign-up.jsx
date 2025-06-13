@@ -32,9 +32,28 @@ export default function SignUpScreen() {
 
     const onSignUpPress = async () => {
         setError('');
+        const trimmedEmail = emailAddress.trim();
+        const trimmedPassword = password.trim();
 
-        if (!emailAddress || !password) {
-            setError('Please enter both email and password.');
+        // Basic validations
+        if (!trimmedEmail && !trimmedPassword) {
+            setError('Please enter your email and password.');
+            return;
+        }
+        if (!trimmedEmail) {
+            setError('Email is required.');
+            return;
+        }
+        if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
+            setError('Please enter a valid email address.');
+            return;
+        }
+        if (!trimmedPassword) {
+            setError('Password is required.');
+            return;
+        }
+        if (trimmedPassword.length < 6) {
+            setError('Password must be at least 6 characters long.');
             return;
         }
 
@@ -42,27 +61,27 @@ export default function SignUpScreen() {
 
         try {
             const response = await register({
-                email: emailAddress.trim(),
-                password: password.trim(),
+                email: trimmedEmail,
+                password: trimmedPassword,
             });
 
             const message = response?.data?.message?.toLowerCase();
 
             if (message?.includes('verification')) {
                 setPendingVerification(true);
-
-                await AsyncStorage.setItem('email', emailAddress.trim());
+                await AsyncStorage.setItem('email', trimmedEmail);
             }
-
         } catch (err) {
             console.error('Signup error:', err);
             setError(
-                err?.response?.data?.message || 'Failed to register. Please try again.'
+                err?.response?.data?.message ||
+                'Failed to register. Please try again later.'
             );
         } finally {
             setIsLoading(false);
         }
     };
+
 
     const onVerifyPress = async () => {
         setError('');
