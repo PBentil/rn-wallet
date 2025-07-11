@@ -36,7 +36,6 @@ export default function Page() {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('all');
 
-    // Load user info
     const loadUserData = useCallback(async () => {
         try {
             const userDataStr = await AsyncStorage.getItem('user');
@@ -52,29 +51,35 @@ export default function Page() {
         }
     }, []);
 
-    // Load transactions and summary
     const loadData = useCallback(async () => {
-        if (!userId) return;
+                         if (!userId) return;
 
-        setIsLoading(true);
-        try {
-            const [fetchedTransactions, fetchedSummary] = await Promise.all([
-                fetchTransactions(userId),
-                fetchSummary(userId),
-            ]);
-            setTransactions(fetchedTransactions);
-            setSummary(fetchedSummary);
-        } catch (error) {
-            console.error("Error loading data:", error);
-            Alert.alert("Error", "Failed to load transactions.");
-        } finally {
-            setIsLoading(false);
-        }
-    }, [userId]);
+                         setIsLoading(true);
+                         try {
+                             const [fetchedTransactions, fetchedSummary] = await Promise.all([
+                                 fetchTransactions(userId),
+                                 fetchSummary(userId),
+                             ]);
+                             setTransactions(fetchedTransactions);
+                             setSummary(fetchedSummary);
+                         } catch (error) {
+                             console.error("Error loading data:", error);
+                           if (
+                                    !error.response ||
+                                    (error.response.status >= 500) ||
+                                    (error.response.status === 401)
+                                ) {
+                                    Alert.alert("Error", "Something went wrong while loading your data.");
+                                }
+
+                         } finally {
+                             setIsLoading(false);
+                         }
+                     }, [userId]);
 
     useFocusEffect(
         useCallback(() => {
-            console.log('📱 Screen focused - refreshing data...');
+            console.log('Screen focused - refreshing data...');
             const refreshOnFocus = async () => {
                 await loadUserData();
                 if (userId) {
@@ -131,12 +136,10 @@ export default function Page() {
         }
     }, [loadData]);
 
-    // Initial load on component mount
     useEffect(() => {
         loadUserData();
     }, []);
 
-    // Load data when userId changes
     useEffect(() => {
         if (userId) {
             loadData();
@@ -224,7 +227,6 @@ export default function Page() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Transactions List */}
                 <Text style={styles.sectionTitle}>
                     {activeTab === 'all' ? 'Recent Transactions' :
                         activeTab === 'income' ? 'Income Transactions' : 'Expense Transactions'}
