@@ -36,16 +36,32 @@ export default function AddTransactionScreen() {
     const categories = isIncomeSelected ? incomeCategories : expenseCategories;
 
     useEffect(() => {
-        const debugUser = async () => {
-            const userData = await AsyncStorage.getItem('user');
-            console.log('User from AsyncStorage:', userData);
+        const fetchUserId = async () => {
+            try {
+                const userDataString = await AsyncStorage.getItem('user');
+                if (userDataString) {
+                    const userData = JSON.parse(userDataString);
+                    if (userData.id) {
+                        setUserId(userData.id);
+                    }
+                }
+            } catch (err) {
+                console.error('Error reading AsyncStorage:', err);
+            }
         };
-        debugUser();
+
+        fetchUserId();
     }, []);
 
     const handleSave = async () => {
         if (!amount || !title || !selectedCategory) {
             Alert.alert('Validation Error', 'Please fill in all fields.');
+            return;
+        }
+
+        const parsedAmount = parseFloat(amount);
+        if (isNaN(parsedAmount) || parsedAmount <= 0) {
+            Alert.alert('Validation Error', 'Please enter a valid amount greater than 0.');
             return;
         }
 
@@ -59,14 +75,21 @@ export default function AddTransactionScreen() {
         const newTransaction = {
             user_id: userId,
             title,
-            amount: parseFloat(amount),
-            type: isIncomeSelected ? 'Income' : 'Expense',
+            amount: parsedAmount,
+            type: isIncomeSelected ? 'income' : 'expense',
             category: selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1),
         };
 
         try {
             await addTransactionApi(newTransaction);
             Alert.alert('Success', 'Transaction added successfully');
+
+            // ✅ Reset form
+            setAmount('');
+            setTitle('');
+            setSelectedCategory('');
+            setIsIncomeSelected(true);
+
             router.back();
         } catch (error) {
             console.error(error);
@@ -87,13 +110,12 @@ export default function AddTransactionScreen() {
 
                 <TouchableOpacity
                     style={styles.saveButtonContainer}
-                    disabled={!amount || !title || !selectedCategory || isSubmitting}
                     onPress={handleSave}
                 >
                     <Text
                         style={[
                             styles.saveButton,
-                            (!amount || !title || !selectedCategory || isSubmitting) && styles.saveButtonDisabled,
+                            (!amount || !title || !selectedCategory || isSubmitting || !userId) && styles.saveButtonDisabled,
                         ]}
                     >
                         {isSubmitting ? 'Saving...' : 'Save'}

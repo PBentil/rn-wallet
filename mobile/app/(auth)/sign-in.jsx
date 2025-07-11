@@ -23,10 +23,27 @@ export default function SignIn() {
     const [loading, setLoading] = useState(false)
 
     const onSignInPress = async () => {
+        const trimmedEmail = emailAddress.trim();
+        const trimmedPassword = password.trim();
+
+        if (!trimmedEmail && !trimmedPassword) {
+            setError("Please enter your email and password.");
+            return;
+        }
+        if (!trimmedEmail) {
+            setError("Please enter your email.");
+            return;
+        }
+        if (!trimmedPassword) {
+            setError("Please enter your password.");
+            return;
+        }
+
         setError('');
         setLoading(true);
+
         try {
-            const response = await login(emailAddress.trim(), password.trim());
+            const response = await login(trimmedEmail, trimmedPassword);
             const token = response.data.token;
             const user = response.data.user;
 
@@ -36,16 +53,17 @@ export default function SignIn() {
             Alert.alert("Success", "Login successful");
             router.replace('/');
         } catch (error) {
-            if (error.response && error.response.status === 401) {
-                setError("Invalid email or password");
+            if (error.response?.status === 401) {
+                setError("Invalid email or password.");
             } else {
-                setError("Something went wrong. Please try again later.");
+                setError("Oops! Something went wrong. Please try again.");
             }
-            console.error(error);
+            console.error("Login error:", error);
         } finally {
             setLoading(false);
         }
-    }
+    };
+
 
     return (
         <KeyboardAwareScrollView
@@ -61,13 +79,14 @@ export default function SignIn() {
 
                 {error ? (
                     <View style={styles.errorBox}>
-                        <Ionicons name="alert-circle-outline" size={24} color={COLORS.expense} />
+                        <Ionicons name="warning-outline" size={20} color={COLORS.expense} />
                         <Text style={styles.errorText}>{error}</Text>
                         <TouchableOpacity onPress={() => setError('')}>
-                            <Ionicons name="close" size={24} color={COLORS.textLight} />
+                            <Ionicons name="close" size={20} color={COLORS.textLight} />
                         </TouchableOpacity>
                     </View>
                 ) : null}
+
 
                 <TextInput
                     autoCapitalize="none"
@@ -92,7 +111,7 @@ export default function SignIn() {
                     {loading ? (
                         <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                        <Text style={styles.buttonText}>Sign In</Text>
+                        <Text style={styles.buttonText}>Log In</Text>
                     )}
                 </TouchableOpacity>
 

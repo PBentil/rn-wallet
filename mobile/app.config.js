@@ -5,21 +5,24 @@ export default {
         name: "Money Tracker",
         slug: "money-tracker",
         version: "1.0.0",
+
         extra: {
             apiUrl: process.env.API_URL,
+            eas: {
+                projectId: "ce40dddd-57a6-455a-bacf-f48921aae891",
+            },
         },
 
-        // General scheme for all platforms (optional if you specify platform-specific)
         scheme: "moneytracker",
 
         ios: {
             bundleIdentifier: "com.brentTech.moneytracker",
-            scheme: "moneytracker",  // iOS deep link scheme
+            scheme: "moneytracker",
         },
 
         android: {
             package: "com.brentTech.moneytracker",
-            scheme: "moneytracker",  // Android deep link scheme
+            scheme: "moneytracker",
             intentFilters: [
                 {
                     action: "VIEW",
@@ -35,8 +38,6 @@ export default {
             ],
         },
 
-        web: {
-            // No scheme here; web uses URLs normally
-        },
+        web: {},
     },
 };
