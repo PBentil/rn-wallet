@@ -1,5 +1,5 @@
 import { Link, useRouter } from 'expo-router'
-import {Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert} from 'react-native'
+import {Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert, Dimensions} from 'react-native'
 import React, { useState } from 'react'
 import { styles } from "../../assets/styles/auth.styles";
 import { Image } from "expo-image";
@@ -15,6 +15,7 @@ import { login } from "../../services /authServices";
 
 export default function SignIn() {
     const router = useRouter()
+    const {height} = Dimensions.get('window');
 
 
     const [emailAddress, setEmailAddress] = useState('')
@@ -68,13 +69,13 @@ export default function SignIn() {
     return (
         <KeyboardAwareScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={{ flexGrow: 1 }}
+            contentContainerStyle={{ flexGrow: 1, minHeight: height , backgroundColor: colors.backgroundColor }}
             enableOnAndroid={true}
             enableAutomaticScroll={true}
             extraHeight={100}
         >
             <View style={styles.container}>
-                <Image style={styles.illustration} source={require('../../assets/images/revenue-i4.png')} />
+                <Image style={styles.illustration} source={require('../../assets/images/revenue-i4.png')} contentFit="cover" />
                 <Text style={styles.title}>Welcome Back</Text>
 
                 {error ? (

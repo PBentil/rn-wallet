@@ -176,7 +176,6 @@ export default function Page() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Balance Card */}
                 <View style={styles.balanceCard}>
                     <Text style={styles.balanceTitle}>Total Balance</Text>
                     <Text style={styles.balanceAmount}>
@@ -199,7 +198,6 @@ export default function Page() {
                     </View>
                 </View>
 
-                {/* Transaction Filter Tabs */}
                 <View style={styles.tabContainer}>
                     <TouchableOpacity
                         style={[styles.tabButton, activeTab === 'all' && styles.activeTab]}
