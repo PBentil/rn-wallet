@@ -1,10 +1,23 @@
 import 'dotenv/config';
 
+
 export default {
     expo: {
-        name: "Money Tracker",
-        slug: "money-tracker",
+        name: "FinTrack",
+        slug: "Finance-tracker",
         version: "1.0.0",
+        icon: "./assets/images/logo.png",
+        adaptiveIcon: {
+            foregroundImage: "./assets/images/logo.png",
+            backgroundColor: "#ffffff"
+        },
+
+        backgroundColor:"#FFF8F3",
+        splash: {
+            image: "./assets/images/splash-icon.png",
+            resizeMode: "contain",
+            backgroundColor: "#FFF8F3",
+        },
 
         extra: {
             apiUrl: process.env.API_URL,
@@ -13,22 +26,39 @@ export default {
             },
         },
 
-        scheme: "moneytracker",
+        scheme: "FinTrack",
 
         ios: {
-            bundleIdentifier: "com.brentTech.moneytracker",
-            scheme: "moneytracker",
+            bundleIdentifier: "com.brentTech.FinTrack",
+            scheme: "FinTrack",
+            statusBar: {
+                style: "light",
+                hidden: false
+            },
+            infoPlist: {
+                UIViewControllerBasedStatusBarAppearance: false,
+                UIStatusBarHidden: false,
+                UIStatusBarStyle: "UIStatusBarStyleLightContent"
+            }
         },
 
         android: {
-            package: "com.brentTech.moneytracker",
-            scheme: "moneytracker",
+            package: "com.brentTech.FinTrack",
+            scheme: "FinTrack",
+
+            statusBar: {
+                translucent: true,
+                backgroundColor: "transparent"
+            },
+            navigationBar: {
+                visible: "leanback"
+            },
             intentFilters: [
                 {
                     action: "VIEW",
                     data: [
                         {
-                            scheme: "moneytracker",
+                            scheme: "FinTrack",
                             host: "app",
                             pathPrefix: "/",
                         },

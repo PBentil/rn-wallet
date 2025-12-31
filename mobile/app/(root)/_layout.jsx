@@ -1,6 +1,9 @@
 import { Redirect, Stack, usePathname } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from 'expo-status-bar';
+import { styles } from "../../assets/styles/auth.styles";
+
 
 export default function ProtectedLayout() {
     const [loading, setLoading] = useState(true);
@@ -16,14 +19,17 @@ export default function ProtectedLayout() {
     }, []);
 
     if (loading) {
-        return null; // or loading spinner
+        return null;
     }
 
-    // If user is NOT authenticated and NOT on public pages, redirect to sign-in
     if (!isAuthenticated) {
         return <Redirect href="/sign-in" />;
     }
 
-    // If authenticated, render the protected stack
-    return <Stack screenOptions={{ headerShown: false }} />;
+    return (
+        <>
+            <StatusBar style="light" translucent backgroundColor="transparent" />
+            <Stack screenOptions={{ headerShown: false, contentStyle: {backgroundColor:styles.backgroundColor} }} />
+        </>
+    );
 }

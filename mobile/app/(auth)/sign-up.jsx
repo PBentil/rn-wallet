@@ -19,7 +19,7 @@ export default function SignUpScreen() {
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [countdown, setCountdown] = useState(0); // cooldown timer in seconds
+    const [countdown, setCountdown] = useState(0);
 
     const resetStates = () => {
         setEmailAddress('');
@@ -35,7 +35,7 @@ export default function SignUpScreen() {
         const trimmedEmail = emailAddress.trim();
         const trimmedPassword = password.trim();
 
-        // Basic validations
+
         if (!trimmedEmail && !trimmedPassword) {
             setError('Please enter your email and password.');
             return;
@@ -93,7 +93,6 @@ export default function SignUpScreen() {
         setIsLoading(true);
 
         try {
-            // Get saved email from AsyncStorage
             const savedEmail = await AsyncStorage.getItem('email');
 
             if (!savedEmail) {
@@ -107,7 +106,6 @@ export default function SignUpScreen() {
             if (response?.data?.message?.includes('OTP verified successfully')) {
                 Alert.alert('Success', 'Email verified. You can now log in.');
 
-                // Clear saved email since verification is done
                 await AsyncStorage.removeItem('email');
 
                 resetStates();
@@ -225,6 +223,7 @@ export default function SignUpScreen() {
                 <Image
                     style={styles.illustration}
                     source={require('../../assets/images/revenue-i2.png')}
+                    contentFit="cover"
                 />
                 <Text style={styles.title}>Create an Account</Text>
                 {renderErrorBox()}
